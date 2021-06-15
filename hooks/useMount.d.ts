@@ -1,2 +1,2 @@
-declare const useMount: (fn: () => void) => void;
+declare const useMount: (callback: () => void) => void;
 export default useMount;

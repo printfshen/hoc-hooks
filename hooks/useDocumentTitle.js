@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 function useDocumentTitle(title) {
-    useEffect(function () {
+    useEffect(() => {
         document.title = title;
-        return function () {
+        return () => {
             document.title = "Loading...";
         };
     }, [title]);

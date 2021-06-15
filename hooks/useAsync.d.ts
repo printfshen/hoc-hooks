@@ -1,20 +1,23 @@
-interface State<T> {
+interface State<D> {
     error: Error | null;
-    data: T | null;
+    data: D | null;
     stat: "idle" | "loading" | "error" | "success";
 }
-declare const useAsync: <T>(initialState?: State<T> | undefined, initialConfig?: {
+export declare const useAsync: <D>(initialState?: State<D> | undefined, initialConfig?: {
     throwOnError: boolean;
 } | undefined) => {
     error: Error | null;
-    data: T | null;
+    data: D | null;
     stat: "idle" | "loading" | "error" | "success";
     isIdle: boolean;
     isLoading: boolean;
     isError: boolean;
     isSuccess: boolean;
-    run: (promise: Promise<T>) => Promise<any>;
-    setData: (data: T) => void;
+    run: (promise: Promise<D>, runConfig?: {
+        retry: () => Promise<D>;
+    } | undefined) => Promise<any>;
+    setData: (data: D) => void;
     setError: (error: Error) => void;
+    retry: () => void;
 };
 export default useAsync;

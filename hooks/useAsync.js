@@ -1,59 +1,72 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-import { useState } from "react";
-var defaultInitialState = {
+import { useCallback, useReducer, useState } from "react";
+import useMountedRef from "./useMountedRef";
+const defaultInitialState = {
     stat: "idle",
     data: null,
     error: null,
 };
-var defaultConfig = {
+const defaultConfig = {
     throwOnError: false,
 };
-var useAsync = function (initialState, initialConfig) {
-    var config = __assign(__assign({}, defaultConfig), initialConfig);
-    var _a = useState(__assign(__assign({}, defaultInitialState), initialState)), state = _a[0], setState = _a[1];
-    var setData = function (data) {
-        setState({
-            data: data,
-            stat: "success",
-            error: null
-        });
-    };
-    var setError = function (error) {
-        return setState({
-            error: error,
-            stat: "error",
-            data: null,
-        });
-    };
-    var run = function (promise) {
+const useSafeDispatch = (dispatch) => {
+    const mountedRef = useMountedRef();
+    return useCallback((...args) => (mountedRef.current ? dispatch(...args) : void 0), [dispatch, mountedRef]);
+};
+export const useAsync = (initialState, initialConfig) => {
+    const config = { ...defaultConfig, ...initialConfig };
+    const [state, dispatch] = useReducer((state, action) => ({ ...state, ...action }), {
+        ...defaultInitialState,
+        ...initialState,
+    });
+    const safeDispatch = useSafeDispatch(dispatch);
+    // useState直接传入函数的含义是：惰性初始化；所以，要用useState保存函数，不能直接传入函数
+    // https://codesandbox.io/s/blissful-water-230u4?file=/src/App.js
+    const [retry, setRetry] = useState(() => () => {
+    });
+    const setData = useCallback((data) => safeDispatch({
+        data,
+        stat: "success",
+        error: null,
+    }), [safeDispatch]);
+    const setError = useCallback((error) => safeDispatch({
+        error,
+        stat: "error",
+        data: null,
+    }), [safeDispatch]);
+    // run 用来触发异步请求
+    const run = useCallback((promise, runConfig) => {
         if (!promise || !promise.then) {
-            throw new Error("非 Promise 类型数据");
+            throw new Error("请传入 Promise 类型数据");
         }
-        setState(__assign(__assign({}, state), { stat: "loading" }));
+        setRetry(() => () => {
+            if (runConfig === null || runConfig === void 0 ? void 0 : runConfig.retry) {
+                run(runConfig === null || runConfig === void 0 ? void 0 : runConfig.retry(), runConfig);
+            }
+        });
+        safeDispatch({ stat: "loading" });
         return promise
-            .then(function (data) {
+            .then((data) => {
             setData(data);
             return data;
         })
-            .catch(function (error) {
+            .catch((error) => {
+            // catch会消化异常，如果不主动抛出，外面是接收不到异常的
             setError(error);
             if (config.throwOnError)
                 return Promise.reject(error);
             return error;
         });
+    }, [config.throwOnError, setData, setError, safeDispatch]);
+    return {
+        isIdle: state.stat === "idle",
+        isLoading: state.stat === "loading",
+        isError: state.stat === "error",
+        isSuccess: state.stat === "success",
+        run,
+        setData,
+        setError,
+        retry,
+        ...state,
     };
-    return __assign({ isIdle: state.stat === "idle", isLoading: state.stat === "loading", isError: state.stat === "error", isSuccess: state.stat === "success", run: run,
-        setData: setData,
-        setError: setError }, state);
 };
 export default useAsync;

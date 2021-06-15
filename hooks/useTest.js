@@ -1,2 +1,2 @@
-var useTest = function () { return console.log("useTest"); };
+const useTest = () => console.log("useTest");
 export default useTest;
